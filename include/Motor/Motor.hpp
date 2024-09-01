@@ -4,6 +4,12 @@
 #include "mbed.h"
 #include "CAN.h"
 
+struct PIDGains {
+    float kp;
+    float ki;
+    float kd;
+};
+
 class Motor {
 public:
     // コンストラクタ
@@ -24,8 +30,8 @@ public:
     // PIDパラメータを自動調整するメソッド
     void auto_tune_pid();
 
-    // 現在のPIDパラメータを出力するメソッド
-    void print_pid_parameters() const;
+    // 現在のPIDパラメータを取得するメソッド
+    PIDGains get_pid_parameters() const;
 
     // フィードバックデータを取得するメソッド
     int16_t get_speed() const;

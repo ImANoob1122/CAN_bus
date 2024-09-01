@@ -182,9 +182,6 @@ void Motor::auto_tune_pid() {
     start_control_loop();
 }
 
-void Motor::print_pid_parameters() const {
-    printf("Current PID parameters:\n");
-    printf("Kp: %.3f\n", kp);
-    printf("Ki: %.3f\n", ki);
-    printf("Kd: %.3f\n", kd);
+PIDGains Motor::get_pid_parameters() const {
+    return {kp, ki, kd};
 }
