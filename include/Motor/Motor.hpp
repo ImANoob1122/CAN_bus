@@ -22,13 +22,13 @@ public:
     // PID制御で目標速度を設定するメソッド
     void set_target_speed(int16_t target_speed);
 
-    // モーターが特定の角度まで指定トルクで回転するメソッド
-    void rotate_to_angle(int16_t target_angle, int16_t torque, int16_t angle_tolerance = 5);
+    // モーターが特定の角度まで指定トルクで回転するメソッド（多回転対応）
+    void rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance = 5);
 
     // フィードバックデータを取得するメソッド
     int16_t get_speed() const;
     int16_t get_torque() const;
-    int16_t get_angle() const;
+    int32_t get_angle() const;
     int8_t get_temperature() const;
 
     // 制御ループを停止するメソッド
@@ -50,7 +50,8 @@ private:
     // フィードバックデータ
     int16_t speed;
     int16_t torque;
-    int16_t angle;
+    int32_t cumulative_angle; // 累積角度
+    int16_t last_angle; // 前回の角度値
     int8_t temperature;
 
     // PID制御用のパラメータ

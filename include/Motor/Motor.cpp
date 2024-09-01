@@ -1,7 +1,8 @@
 #include "Motor.hpp"
 
 Motor::Motor(CAN &can, int motor_id)
-    : can_interface(can), motor_id(motor_id), speed(0), torque(0), angle(0), temperature(0),
+    : can_interface(can), motor_id(motor_id), speed(0), torque(0),
+      cumulative_angle(0), last_angle(0), temperature(0),
       target_speed(0), kp(1.0f), ki(0.1f), kd(0.01f), integral(0.0f), prev_error(0),
       control_thread(osPriorityNormal, 1024, nullptr, "MotorControlThread"),
       control_loop_active(false) {
@@ -31,10 +32,20 @@ void Motor::update_feedback() {
     CANMessage msg;
     while (can_interface.read(msg)) {
         if (msg.id == (0x200 + motor_id)) {
-            angle = (static_cast<int16_t>(msg.data[0]) << 8) | msg.data[1];
+            int16_t current_angle = (static_cast<int16_t>(msg.data[0]) << 8) | msg.data[1];
             speed = (static_cast<int16_t>(msg.data[2]) << 8) | msg.data[3];
             torque = (static_cast<int16_t>(msg.data[4]) << 8) | msg.data[5];
             temperature = msg.data[6];
+
+            // 累積角度の更新
+            int16_t delta_angle = current_angle - last_angle;
+            if (delta_angle > 32767) {
+                delta_angle -= 65536; // 反時計回り
+            } else if (delta_angle < -32767) {
+                delta_angle += 65536; // 時計回り
+            }
+            cumulative_angle += delta_angle;
+            last_angle = current_angle;
         }
     }
 }
@@ -51,8 +62,8 @@ int16_t Motor::get_torque() const {
     return torque;
 }
 
-int16_t Motor::get_angle() const {
-    return angle;
+int32_t Motor::get_angle() const {
+    return cumulative_angle;
 }
 
 int8_t Motor::get_temperature() const {
@@ -119,15 +130,15 @@ void Motor::reset_pid() {
     prev_error = 0;
 }
 
-void Motor::rotate_to_angle(int16_t target_angle, int16_t torque, int16_t angle_tolerance) {
+void Motor::rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance) {
     // 制御ループを停止
     stop_control_loop();
 
     update_feedback(); // まず現在の角度を取得
 
     // 現在の角度が目標角度からの許容誤差内であるかを確認
-    while (abs(angle - target_angle) > angle_tolerance) {
-        if (angle < target_angle) {
+    while (abs(cumulative_angle - target_angle) > angle_tolerance) {
+        if (cumulative_angle < target_angle) {
             set_current(torque);  // 正方向に回転
         } else {
             set_current(-torque); // 逆方向に回転
