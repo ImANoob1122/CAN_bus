@@ -1,9 +1,11 @@
 #include "Motor.hpp"
+#include <cmath>
 
+// コンストラクタ
 Motor::Motor(CAN &can, int motor_id)
     : can_interface(can), motor_id(motor_id), speed(0), torque(0),
       cumulative_angle(0), last_angle(0), temperature(0),
-      target_speed(0), kp(1.0f), ki(0.1f), kd(0.01f), integral(0.0f), prev_error(0),
+      target_speed(0), kp(1.0f), ki(0.0f), kd(0.0f), integral(0.0f), prev_error(0),
       control_thread(osPriorityNormal, 1024, nullptr, "MotorControlThread"),
       control_loop_active(false) {
     // スレッドで制御ループを開始
@@ -130,26 +132,59 @@ void Motor::reset_pid() {
     prev_error = 0;
 }
 
-void Motor::rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance) {
-    // 制御ループを停止
+void Motor::auto_tune_pid() {
     stop_control_loop();
 
-    update_feedback(); // まず現在の角度を取得
+    // 初期の設定
+    float ku = 0.0f; // 臨界ゲイン
+    float tu = 0.0f; // オシレーション周期
+    bool oscillating = false;
+    float current_kp = 1.0f;
+    const float increase_factor = 1.1f;
 
-    // 現在の角度が目標角度からの許容誤差内であるかを確認
-    while (abs(cumulative_angle - target_angle) > angle_tolerance) {
-        if (cumulative_angle < target_angle) {
-            set_current(torque);  // 正方向に回転
-        } else {
-            set_current(-torque); // 逆方向に回転
+    set_pid_parameters(current_kp, 0.0f, 0.0f);
+
+    // オシレーションを検出するための制御ループ
+    for (int i = 0; i < 100; ++i) {
+        set_target_speed(1000); // 目標速度を設定
+        start_control_loop();
+
+        ThisThread::sleep_for(500ms); // 少し待つ
+
+        if (!oscillating && (get_speed() > 100 || get_speed() < -100)) {
+            // オシレーションの開始を検出
+            oscillating = true;
+            ku = current_kp;
+            tu = 0.5f; // 初期値 (サンプル時間)
         }
-        update_feedback(); // 角度を再度確認
-        ThisThread::sleep_for(10ms); // 10ms待機
+
+        if (oscillating && (get_speed() < 10 && get_speed() > -10)) {
+            // オシレーションが停止したら終わり
+            break;
+        }
+
+        // ゲインを増加
+        current_kp *= increase_factor;
+        set_pid_parameters(current_kp, 0.0f, 0.0f);
     }
 
-    // 目標角度に達したらトルクをゼロにしてモーターを停止
-    set_current(0);
+    // ゲインが設定されなかった場合の安全処理
+    if (ku == 0.0f || tu == 0.0f) {
+        set_pid_parameters(1.0f, 0.0f, 0.0f); // デフォルトのゲイン
+    } else {
+        // Ziegler-Nichols法に基づく最適ゲインを設定
+        float tuned_kp = 0.6f * ku;
+        float tuned_ki = 2.0f * tuned_kp / tu;
+        float tuned_kd = tuned_kp * tu / 8.0f;
+        set_pid_parameters(tuned_kp, tuned_ki, tuned_kd);
+    }
 
-    // 制御ループを再開
     start_control_loop();
+}
+
+void Motor::print_pid_parameters() const {
+    printf("Current PID parameters:\n");
+    printf("Kp: %.3f\n", kp);
+    printf("Ki: %.3f\n", ki);
+    printf("Kd: %.3f\n", kd);
 }

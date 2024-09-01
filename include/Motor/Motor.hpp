@@ -3,7 +3,6 @@
 
 #include "mbed.h"
 #include "CAN.h"
-#include "rtos.h"
 
 class Motor {
 public:
@@ -22,8 +21,11 @@ public:
     // PID制御で目標速度を設定するメソッド
     void set_target_speed(int16_t target_speed);
 
-    // モーターが特定の角度まで指定トルクで回転するメソッド（多回転対応）
-    void rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance = 5);
+    // PIDパラメータを自動調整するメソッド
+    void auto_tune_pid();
+
+    // 現在のPIDパラメータを出力するメソッド
+    void print_pid_parameters() const;
 
     // フィードバックデータを取得するメソッド
     int16_t get_speed() const;
