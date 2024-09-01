@@ -98,7 +98,7 @@ void Motor::stop_control_loop() {
     control_mutex.lock();
     control_loop_active = false;
     control_mutex.unlock();
-    //reset_pid(); // 必要に応じてPID内部変数をリセット
+    reset_pid(); // 必要に応じてPID内部変数をリセット
 }
 
 void Motor::start_control_loop() {
@@ -117,4 +117,28 @@ void Motor::set_pid_parameters(float kp, float ki, float kd) {
 void Motor::reset_pid() {
     integral = 0.0f;
     prev_error = 0;
+}
+
+void Motor::rotate_to_angle(int16_t target_angle, int16_t torque, int16_t angle_tolerance) {
+    // 制御ループを停止
+    stop_control_loop();
+
+    update_feedback(); // まず現在の角度を取得
+
+    // 現在の角度が目標角度からの許容誤差内であるかを確認
+    while (abs(angle - target_angle) > angle_tolerance) {
+        if (angle < target_angle) {
+            set_current(torque);  // 正方向に回転
+        } else {
+            set_current(-torque); // 逆方向に回転
+        }
+        update_feedback(); // 角度を再度確認
+        ThisThread::sleep_for(10ms); // 10ms待機
+    }
+
+    // 目標角度に達したらトルクをゼロにしてモーターを停止
+    set_current(0);
+
+    // 制御ループを再開
+    start_control_loop();
 }

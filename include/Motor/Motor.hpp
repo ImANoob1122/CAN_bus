@@ -22,6 +22,9 @@ public:
     // PID制御で目標速度を設定するメソッド
     void set_target_speed(int16_t target_speed);
 
+    // モーターが特定の角度まで指定トルクで回転するメソッド
+    void rotate_to_angle(int16_t target_angle, int16_t torque, int16_t angle_tolerance = 5);
+
     // フィードバックデータを取得するメソッド
     int16_t get_speed() const;
     int16_t get_torque() const;
@@ -56,6 +59,10 @@ private:
     float integral;
     int16_t prev_error;
 
+    // 制御ループがアクティブかどうかのフラグ
+    bool control_loop_active;
+    rtos::Mutex control_mutex;
+
     // PID制御で計算されたトルク電流を取得
     int16_t calculate_pid_output();
 
@@ -67,10 +74,6 @@ private:
 
     // 制御ループを呼び出すための静的メソッド
     static void call_control_loop(Motor *instance);
-
-    // 制御ループがアクティブかどうかのフラグ
-    bool control_loop_active;
-    rtos::Mutex control_mutex;
 };
 
 #endif // MOTOR_HPP
