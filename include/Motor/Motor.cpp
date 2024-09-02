@@ -186,7 +186,7 @@ PIDGains Motor::get_pid_parameters() const {
     return {kp, ki, kd};
 }
 
-void Motor::rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance) {
+void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle_tolerance) {
     // 制御ループを停止
     stop_control_loop();
 
@@ -194,13 +194,9 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_
 
     // 現在の角度が目標角度からの許容誤差内であるかを確認
     while (abs(cumulative_angle - target_angle) > angle_tolerance) {
-        if (cumulative_angle < target_angle) {
-            set_current(torque);  // 正方向に回転
-        } else {
-            set_current(-torque); // 逆方向に回転
-        }
-        update_feedback(); // 角度を再度確認
+        set_current(current);  // 正方向に回転
         ThisThread::sleep_for(10ms); // 10ms待機
+        update_feedback(); // 角度を再度確認
     }
 
     // 目標角度に達したらトルクをゼロにしてモーターを停止
@@ -209,3 +205,4 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_
     // 制御ループを再開
     start_control_loop();
 }
+

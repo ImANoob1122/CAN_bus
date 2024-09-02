@@ -28,7 +28,9 @@ public:
     void set_target_speed(int16_t target_speed);
 
     // モーターが特定の角度まで指定トルクで回転するメソッド（多回転対応）
-    void rotate_to_angle(int32_t target_angle, int16_t torque, int16_t angle_tolerance = 5);
+    void rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle_tolerance = 5);
+
+    void rotate_to_angle_bySpeed(int32_t target_angle, int16_t target_speed, int16_t angle_tolerance = 5);
 
     // PIDパラメータを自動調整するメソッド
     void auto_tune_pid();
