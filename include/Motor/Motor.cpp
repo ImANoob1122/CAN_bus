@@ -192,8 +192,9 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle
 
     update_feedback(); // まず現在の角度を取得
 
+    int32_t start_angle = cumulative_angle;
     // 現在の角度が目標角度からの許容誤差内であるかを確認
-    while (abs(cumulative_angle - target_angle) > angle_tolerance) {
+    while (abs((cumulative_angle - start_angle) - target_angle) > angle_tolerance) {
         set_current(current);  // 正方向に回転
         ThisThread::sleep_for(10ms); // 10ms待機
         update_feedback(); // 角度を再度確認
@@ -206,3 +207,13 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle
     start_control_loop();
 }
 
+void Motor::rotate_to_angle_bySpeed(int32_t target_angle, int16_t target_speed, int16_t angle_tolerance = 5) {
+    update_feedback();
+    int32_t start_angle = cumulative_angle;
+    // 現在の角度が目標角度からの許容誤差内であるかを確認
+    while (abs((cumulative_angle - start_angle) - target_angle) > angle_tolerance) {
+        set_target_speed(target_speed);  // 正方向に回転
+        ThisThread::sleep_for(10ms); // 10ms待機
+        update_feedback(); // 角度を再度確認
+    }
+}
