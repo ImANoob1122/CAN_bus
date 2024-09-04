@@ -22,7 +22,7 @@ public:
     void turn(int16_t speed, int32_t duration_ms);
 
     // ロボット本体を指定角度回転させるメソッド
-    void rotate_robot_by_angle(float angle, int16_t torque, int16_t angle_tolerance = 5);
+    void rotate_robot_by_angle(float Turning_Radius, float turning_angle, float distance_to_wheel, int16_t robot_speed, int16_t angle_tolerance = 5, bool Clockwise = true);
 
 private:
     Motor &left_motor;

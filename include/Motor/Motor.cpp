@@ -2,29 +2,26 @@
 #include <cmath>
 
 // コンストラクタ
-Motor::Motor(CAN &can, int motor_id)
-    : can_interface(can), motor_id(motor_id), speed(0), torque(0),
+Motor::Motor(CAN &can, int motor_id, char* data, bool direction = true)
+    : can_interface(can), motor_id(motor_id), _data(data), _direction(direction), speed(0), torque(0),
       cumulative_angle(0), last_angle(0), temperature(0),
       target_speed(0), kp(1.0f), ki(0.0f), kd(0.0f), integral(0.0f), prev_error(0),
-      control_thread(osPriorityNormal, 1024, nullptr, "MotorControlThread"),
-      control_loop_active(false) {
+      control_loop_active(true) {
     // スレッドで制御ループを開始
-    control_thread.start(callback(Motor::call_control_loop, this));
+    t.attach(callback(this, &control_loop), 10ms);
 }
 
 Motor::~Motor() {
-    stop_control_loop();
-    control_thread.terminate();
+    t.detach();
 }
 
 void Motor::set_current(int16_t current) {
-    char data[8] = {0};
-    data[0] = (current >> 8) & 0xFF; // 電流の上位バイト
-    data[1] = current & 0xFF;        // 電流の下位バイト
+    const auto motorIndex = (motor_id - 1) * 2;
+    _data[motorIndex] = (current >> 8) & 0xFF; // 電流の上位バイト
+    _data[motorIndex+1] = current & 0xFF;        // 電流の下位バイト
     // 他のモーターの電流を0にする（必要に応じて調整）
-    data[2] = data[3] = data[4] = data[5] = data[6] = data[7] = 0;
 
-    CANMessage msg(0x200, data, 8);
+    CANMessage msg(0x200, _data, 8);
     if (!can_interface.write(msg)) {
         printf("CAN send failed for Motor ID: 0x%X\n", motor_id);
     }
@@ -89,36 +86,22 @@ int16_t Motor::calculate_pid_output() {
 }
 
 void Motor::control_loop() {
-    while (true) {
-        control_mutex.lock();
-        bool active = control_loop_active;
-        control_mutex.unlock();
-        
-        if (active) {
-            update_feedback();  // フィードバックデータを更新
-            int16_t pid_output = calculate_pid_output();
-            set_current(pid_output);  // 計算されたPID出力をトルク電流として設定
-        }
-        ThisThread::sleep_for(10ms); // 10ms周期
+    if (control_loop_active) {
+        update_feedback();  // フィードバックデータを更新
+        int16_t pid_output = calculate_pid_output();
+        set_current(pid_output);  // 計算されたPID出力をトルク電流として設定
     }
 }
 
-void Motor::call_control_loop(Motor *instance) {
-    instance->control_loop();
-}
-
 void Motor::stop_control_loop() {
-    control_mutex.lock();
     control_loop_active = false;
-    control_mutex.unlock();
+    t.detach();
     reset_pid(); // 必要に応じてPID内部変数をリセット
 }
 
 void Motor::start_control_loop() {
-    reset_pid(); // ループ開始時にPID内部変数をリセット
-    control_mutex.lock();
+    t.attach(callback(this, &control_loop), 10ms);
     control_loop_active = true;
-    control_mutex.unlock();
 }
 
 void Motor::set_pid_parameters(float kp, float ki, float kd) {
@@ -191,6 +174,8 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle
     stop_control_loop();
 
     update_feedback(); // まず現在の角度を取得
+    
+    target_angle += cumulative_angle;//現在の角度から目標角度移動すると
 
     int32_t start_angle = cumulative_angle;
     // 現在の角度が目標角度からの許容誤差内であるかを確認
@@ -209,6 +194,7 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle
 
 void Motor::rotate_to_angle_bySpeed(int32_t target_angle, int16_t target_speed, int16_t angle_tolerance = 5) {
     update_feedback();
+    target_angle += cumulative_angle;//現在の角度から目標角度移動すると
     int32_t start_angle = cumulative_angle;
     // 現在の角度が目標角度からの許容誤差内であるかを確認
     while (abs((cumulative_angle - start_angle) - target_angle) > angle_tolerance) {

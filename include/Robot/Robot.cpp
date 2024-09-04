@@ -42,14 +42,6 @@ int32_t Robot::calculate_wheel_rotation(float angle) {
 }
 
 // ロボット本体を指定角度回転させるメソッド
-void Robot::rotate_robot_by_angle(float angle, int16_t torque, int16_t angle_tolerance) {
-    // 目的の回転角度に必要なタイヤの回転量を計算
-    int32_t wheel_rotation = calculate_wheel_rotation(angle);
-
-    // 左右のモーターが互いに逆方向に回転することでロボット本体を回転
-    int32_t left_target_angle = left_motor.get_angle() + wheel_rotation;
-    int32_t right_target_angle = right_motor.get_angle() - wheel_rotation;
-
-    left_motor.rotate_to_angle(left_target_angle, torque, angle_tolerance);
-    right_motor.rotate_to_angle(right_target_angle, torque, angle_tolerance);
+void Robot::rotate_robot_by_angle(float Turning_Radius, float turning_angle, float distance_to_wheel, int16_t robot_speed, int16_t angle_tolerance, bool Clockwise) {
+    
 }
