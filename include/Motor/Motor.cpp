@@ -2,13 +2,13 @@
 #include <cmath>
 
 // コンストラクタ
-Motor::Motor(CAN &can, int motor_id, char* data, bool direction = true)
+Motor::Motor(CAN &can, unsigned int motor_id, char* data, bool direction)
     : can_interface(can), motor_id(motor_id), _data(data), _direction(direction), speed(0), torque(0),
       cumulative_angle(0), last_angle(0), temperature(0),
       target_speed(0), kp(1.0f), ki(0.0f), kd(0.0f), integral(0.0f), prev_error(0),
       control_loop_active(true) {
     // スレッドで制御ループを開始
-    t.attach(callback(this, &control_loop), 10ms);
+    t.attach(callback(this, &Motor::control_loop), 10ms);
 }
 
 Motor::~Motor() {
@@ -38,11 +38,6 @@ void Motor::update_feedback() {
 
             // 累積角度の更新
             int16_t delta_angle = current_angle - last_angle;
-            if (delta_angle > 32767) {
-                delta_angle -= 65536; // 反時計回り
-            } else if (delta_angle < -32767) {
-                delta_angle += 65536; // 時計回り
-            }
             cumulative_angle += delta_angle;
             last_angle = current_angle;
         }
@@ -100,7 +95,7 @@ void Motor::stop_control_loop() {
 }
 
 void Motor::start_control_loop() {
-    t.attach(callback(this, &control_loop), 10ms);
+    t.attach(callback(this, &Motor::control_loop), 10ms);
     control_loop_active = true;
 }
 
@@ -192,7 +187,7 @@ void Motor::rotate_to_angle(int32_t target_angle, int16_t current, int16_t angle
     start_control_loop();
 }
 
-void Motor::rotate_to_angle_bySpeed(int32_t target_angle, int16_t target_speed, int16_t angle_tolerance = 5) {
+void Motor::rotate_to_angle_bySpeed(int32_t target_angle, int16_t target_speed, int16_t angle_tolerance) {
     update_feedback();
     target_angle += cumulative_angle;//現在の角度から目標角度移動すると
     int32_t start_angle = cumulative_angle;

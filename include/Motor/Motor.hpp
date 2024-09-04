@@ -13,7 +13,7 @@ struct PIDGains {
 class Motor {
 public:
     // コンストラクタ
-    Motor(CAN &can, int motor_id, char* data, bool direction = true);
+    Motor(CAN &can, unsigned int motor_id, char* data, bool direction = true);
 
     // デストラクタ
     ~Motor();
@@ -59,7 +59,7 @@ public:
 
 private:
     CAN &can_interface; // CANインターフェースの参照
-    int motor_id;       // モーターのCAN ID
+    unsigned int motor_id;       // モーターのCAN ID
     char* _data;
     bool _direction;
 
